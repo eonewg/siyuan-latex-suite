@@ -1,19 +1,9 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
 package.zip
-.npm-cache/
-.spec-workflow/
-*.log
-.env
-.env.*
-.DS_Store
-.idea/
-.vscode/
 
-# Local development notes and source artwork
-findings.md
-progress.md
-task_plan.md
-icon-source.png
-preview-source.png
-icon.svg
+# Logs
+*.log
