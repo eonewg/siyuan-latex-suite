@@ -2,7 +2,7 @@
   "name": "siyuan-latex-suite",
   "author": "eonewg",
   "url": "https://github.com/eonewg/siyuan-latex-suite",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "minAppVersion": "3.8.0",
   "kernels": ["all"],
   "backends": ["all"],

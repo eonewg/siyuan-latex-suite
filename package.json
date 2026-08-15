@@ -1,6 +1,6 @@
 {
   "name": "siyuan-latex-suite",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "private": true,
   "type": "module",
   "description": "LaTeX typing enhancements for SiYuan's math editor",

@@ -4,7 +4,7 @@ import {fileURLToPath} from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = resolve(root, "dist");
-const assets = ["plugin.json", "README.md", "README_zh_CN.md", "LICENSE", "icon.png", "preview.png"];
+const assets = ["plugin.json", "README.md", "README_zh_CN.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "icon.png", "preview.png"];
 
 mkdirSync(dist, {recursive: true});
 for (const asset of assets) {
