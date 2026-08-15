@@ -1,0 +1,23 @@
+{
+  "name": "siyuan-latex-suite",
+  "version": "0.2.9",
+  "private": true,
+  "type": "module",
+  "description": "LaTeX typing enhancements for SiYuan's math editor",
+  "scripts": {
+    "dev": "vite build --watch --mode development",
+    "build": "vite build && node scripts/copy-assets.mjs",
+    "package": "npm run build && node scripts/package.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "@types/archiver": "^6.0.3",
+    "archiver": "^7.0.1",
+    "siyuan": "^1.2.4",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.2",
+    "vitest": "^3.2.4"
+  }
+}

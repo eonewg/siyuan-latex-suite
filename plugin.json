@@ -1,0 +1,24 @@
+{
+  "name": "siyuan-latex-suite",
+  "author": "eonewg",
+  "url": "https://github.com/eonewg/siyuan-latex-suite",
+  "version": "0.2.9",
+  "minAppVersion": "3.8.0",
+  "kernels": ["all"],
+  "backends": ["all"],
+  "frontends": ["desktop", "mobile", "browser-desktop", "browser-mobile", "desktop-window"],
+  "disabledInPublish": false,
+  "displayName": {
+    "default": "LaTeX Suite",
+    "zh-CN": "LaTeX 输入增强"
+  },
+  "description": {
+    "default": "Obsidian LaTeX Suite-compatible snippets and math typing enhancements for SiYuan.",
+    "zh-CN": "为思源公式编辑器提供兼容 Obsidian LaTeX Suite 的完整片段与输入增强。"
+  },
+  "readme": {
+    "default": "README.md",
+    "zh-CN": "README_zh_CN.md"
+  },
+  "keywords": ["LaTeX", "KaTeX", "math", "snippets", "公式", "输入增强"]
+}

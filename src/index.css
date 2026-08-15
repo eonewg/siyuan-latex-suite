@@ -1,0 +1,30 @@
+.latex-suite__snippets {
+    display: block;
+    box-sizing: border-box;
+    height: 360px;
+    min-height: 180px;
+    max-height: 60vh;
+    margin: 0;
+    width: 100%;
+    resize: vertical;
+    font-family: var(--b3-font-family-code);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre;
+}
+
+.latex-suite__variables {
+    height: 160px;
+    min-height: 120px;
+}
+
+@media screen and (max-width: 750px) {
+    .latex-suite__snippets {
+        height: 280px;
+        max-height: 50vh;
+    }
+
+    .latex-suite__variables {
+        height: 140px;
+    }
+}
