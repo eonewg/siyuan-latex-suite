@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-SiYuan LaTeX Suite is inspired by and ports the snippet system and math-typing workflow of [Obsidian LaTeX Suite](https://github.com/artisticat1/obsidian-latex-suite). We thank artisticat1 and all upstream contributors for their work.
+Latex Suite is inspired by and ports the snippet system and math-typing workflow of [Obsidian LaTeX Suite](https://github.com/artisticat1/obsidian-latex-suite). We thank artisticat1 and all upstream contributors for their work.
 
 Obsidian LaTeX Suite is distributed under the MIT License:
 

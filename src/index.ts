@@ -30,8 +30,8 @@ export default class SiyuanLatexSuite extends Plugin {
                 if (this.connectionNotified) return;
                 this.connectionNotified = true;
                 showMessage(kind === "mathlive"
-                    ? (this.i18n.mathLiveConnected ?? "LaTeX Suite connected to MathLive")
-                    : (this.i18n.editorConnected ?? "LaTeX Suite connected to the math editor"), 2500);
+                    ? (this.i18n.mathLiveConnected ?? "Latex Suite connected to MathLive")
+                    : (this.i18n.editorConnected ?? "Latex Suite connected to the math editor"), 2500);
             },
         );
         this.textModeShortcuts = new TextModeShortcutController(() => this.settingsValue);
@@ -52,8 +52,8 @@ export default class SiyuanLatexSuite extends Plugin {
                 this.settingsValue.enabled = !this.settingsValue.enabled;
                 void this.saveSettings(this.settingsValue).then(() => {
                     showMessage(this.settingsValue.enabled
-                        ? (this.i18n.enabledMessage ?? "LaTeX Suite enabled")
-                        : (this.i18n.disabledMessage ?? "LaTeX Suite disabled"));
+                        ? (this.i18n.enabledMessage ?? "Latex Suite enabled")
+                        : (this.i18n.disabledMessage ?? "Latex Suite disabled"));
                     this.refreshSettingsUI();
                 });
             },

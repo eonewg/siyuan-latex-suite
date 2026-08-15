@@ -1,14 +1,14 @@
-# SiYuan LaTeX Suite
+# Latex Suite
 
 > 为思源笔记提供快捷、可配置、接近手写速度的 LaTeX 公式输入体验。
 
-![LaTeX Suite 公式输入预览](preview.png)
+![Latex Suite 公式输入预览](preview.png)
 
 [English](README.md) · [问题反馈](https://github.com/eonewg/siyuan-latex-suite/issues) · [第三方声明](THIRD_PARTY_NOTICES.md)
 
 ## 简介
 
-SiYuan LaTeX Suite 是面向思源笔记公式编辑器的输入增强插件。它把 snippets、自动分数、停靠点导航、矩阵快捷键、选区变换和智能括号等能力整合到思源原生公式源码框中，也兼容“数学增强”插件提供的 MathLive 编辑器。
+Latex Suite 是面向思源笔记公式编辑器的输入增强插件。它把 snippets、自动分数、停靠点导航、矩阵快捷键、选区变换和智能括号等能力整合到思源原生公式源码框中，也兼容“数学增强”插件提供的 MathLive 编辑器。
 
 插件不仅能在公式面板内加速输入，还可以直接在正文中键入 `mk` 创建行级公式，或在空段落中键入 `dm` 创建公式块。内置配置包含 150 余个经过测试的 snippets，并允许在设置中完全替换、扩展或重写。
 
@@ -69,7 +69,7 @@ SiYuan LaTeX Suite 是面向思源笔记公式编辑器的输入增强插件。�
 
 ## 自定义 Snippets
 
-打开“设置 → 集市 → 已下载 → LaTeX 输入增强 → 设置”，可以直接编辑 snippets 和变量。配置是受信任的 JavaScript 表达式，不是 JSON，因此支持注释、正则字面量和函数。
+打开“设置 → 集市 → 已下载 → Latex Suite → 设置”，可以直接编辑 snippets 和变量。配置是受信任的 JavaScript 表达式，不是 JSON，因此支持注释、正则字面量和函数。
 
 ```js
 [

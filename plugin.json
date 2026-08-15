@@ -9,12 +9,12 @@
   "frontends": ["desktop", "mobile", "browser-desktop", "browser-mobile", "desktop-window"],
   "disabledInPublish": false,
   "displayName": {
-    "default": "LaTeX Suite",
-    "zh-CN": "LaTeX 输入增强"
+    "default": "Latex Suite",
+    "zh-CN": "Latex Suite"
   },
   "description": {
-    "default": "Obsidian LaTeX Suite-compatible snippets and math typing enhancements for SiYuan.",
-    "zh-CN": "为思源公式编辑器提供兼容 Obsidian LaTeX Suite 的完整片段与输入增强。"
+    "default": "Snippets and fast math typing enhancements for SiYuan's LaTeX editors.",
+    "zh-CN": "为思源公式编辑器提供 snippets、自动分数、停靠点与矩阵快捷输入。"
   },
   "readme": {
     "default": "README.md",

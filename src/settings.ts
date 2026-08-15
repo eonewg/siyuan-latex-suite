@@ -173,7 +173,7 @@ export function createSettingsUI(
     addSwitch("matrixShortcuts", labels.matrixShortcuts, labels.matrixShortcutsDescription);
     addSwitch("tabOut", labels.tabOut, labels.tabOutDescription);
     addSwitch("visualSnippets", labels.visualSnippets, labels.visualSnippetsDescription);
-    addSwitch("removeSnippetWhitespace", "行级公式移除片段尾随空格", "与 LaTeX Suite 的 removeSnippetWhitespace 一致。");
+    addSwitch("removeSnippetWhitespace", "行级公式移除片段尾随空格", "与 Latex Suite 的 removeSnippetWhitespace 一致。");
     addSwitch("suppressSnippetTriggerOnIME", "输入法组合期间抑制片段", "避免中文输入法尚未上屏时误触发自动片段。");
     addSwitch("autoEnlargeBrackets", "自动放大括号", "片段包含分数、求和、积分等命令时自动加入 \\left / \\right。");
     addSwitch("tabOutExitOnlyAtEnd", "仅在公式末尾退出", "启用后，Tab 只有在光标位于公式末尾时才关闭公式输入面板。");
@@ -191,7 +191,7 @@ export function createSettingsUI(
     addField("tabOutClosingSymbols", "Tab 可跳过的闭合符号", "用逗号分隔，例如 ), ], \\rangle。");
     addField("autoEnlargeBracketTriggers", "自动放大触发命令", "用逗号分隔，例如 \\frac, \\sum, \\int。");
     setting.addItem({
-        title: "Snippets（LaTeX Suite JavaScript 格式）",
+        title: "Snippets（Latex Suite JavaScript 格式）",
         description: "支持注释、RegExp、replacement 函数、${VISUAL}、triggerAfter、priority 与排除字段。此处是受信任代码配置。",
         // SiYuan's Setting API calls the vertically stacked layout "row".
         // Using "column" places the textarea beside the label and gives it
@@ -201,7 +201,7 @@ export function createSettingsUI(
     });
     setting.addItem({
         title: "Snippet 变量",
-        description: "支持 ${GREEK}、${SYMBOL} 等触发器变量，格式与 LaTeX Suite 一致。",
+        description: "支持 ${GREEK}、${SYMBOL} 等触发器变量，格式与 Latex Suite 一致。",
         direction: "row",
         createActionElement: () => variablesSource,
     });

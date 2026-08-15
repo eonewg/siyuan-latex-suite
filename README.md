@@ -1,14 +1,14 @@
-# SiYuan LaTeX Suite
+# Latex Suite
 
 > Fast, configurable LaTeX input for SiYuan Note.
 
-![LaTeX Suite formula input preview](preview.png)
+![Latex Suite formula input preview](preview.png)
 
 [简体中文](README_zh_CN.md) · [Issues](https://github.com/eonewg/siyuan-latex-suite/issues) · [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 ## Overview
 
-SiYuan LaTeX Suite enhances SiYuan's formula editors with snippets, automatic fractions, tabstop navigation, matrix shortcuts, visual transformations, and intelligent bracket handling. It works with SiYuan's native formula source editor and the MathLive editor provided by Math Enhance.
+Latex Suite enhances SiYuan's formula editors with snippets, automatic fractions, tabstop navigation, matrix shortcuts, visual transformations, and intelligent bracket handling. It works with SiYuan's native formula source editor and the MathLive editor provided by Math Enhance.
 
 The plugin also works directly in document text: type `mk` to create an inline formula, or type `dm` in an empty paragraph to create a math block. More than 150 tested snippets are bundled as the initial configuration and can be replaced or extended from the settings panel.
 

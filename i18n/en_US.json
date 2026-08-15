@@ -1,9 +1,9 @@
 {
-  "toggleLatexSuite": "Enable/disable LaTeX Suite",
-  "enabledMessage": "LaTeX Suite enabled",
-  "disabledMessage": "LaTeX Suite disabled",
-  "editorConnected": "LaTeX Suite connected to SiYuan's math editor",
-  "mathLiveConnected": "LaTeX Suite connected to the Math Enhance editor",
+  "toggleLatexSuite": "Enable/disable Latex Suite",
+  "enabledMessage": "Latex Suite enabled",
+  "disabledMessage": "Latex Suite disabled",
+  "editorConnected": "Latex Suite connected to SiYuan's math editor",
+  "mathLiveConnected": "Latex Suite connected to the Math Enhance editor",
   "enabled": "Enable plugin",
   "enabledDescription": "Controls every math typing enhancement. Toggle quickly with Alt+Shift+L.",
   "autoSnippets": "Automatic snippets",
@@ -18,8 +18,8 @@
   "tabOutDescription": "When no other target exists and the cursor is at the end, Tab closes the math editor.",
   "visualSnippets": "Selection snippets",
   "visualSnippetsDescription": "Select math and press U/O/C/K/B for underbrace, overbrace, cancel, cancelto, or underset.",
-  "customSnippets": "Snippets (LaTeX Suite JavaScript)",
+  "customSnippets": "Snippets (Latex Suite JavaScript)",
   "customSnippetsDescription": "Supports comments, RegExp, function replacements, variables, triggerAfter, triggerKey, priorities, exclusions and full tabstop semantics.",
   "invalidSnippets": "Invalid custom snippets",
-  "saved": "LaTeX Suite settings saved"
+  "saved": "Latex Suite settings saved"
 }
