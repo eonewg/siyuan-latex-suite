@@ -12,3 +12,4 @@ for (const asset of assets) {
     if (existsSync(source)) cpSync(source, resolve(dist, asset));
 }
 cpSync(resolve(root, "i18n"), resolve(dist, "i18n"), {recursive: true});
+cpSync(resolve(root, "docs"), resolve(dist, "docs"), {recursive: true});
