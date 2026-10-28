@@ -1,5 +1,5 @@
 import {SnippetEngine} from "./snippet-engine";
-import type {EditorMode, Expansion, SnippetDefinition, TabstopRange} from "../types";
+import type {EditorMode, Expansion, MathlessMacros, SnippetDefinition, TabstopRange} from "../types";
 
 export interface AppliedExpansion {
     value: string;
@@ -40,10 +40,11 @@ export function applyWithRecursion(
     wordDelimiters: string,
     recursion: number,
     engine = new SnippetEngine(),
+    textMacros?: MathlessMacros,
 ): AppliedExpansion {
     let result = applyOne(value, [], initial);
     for (let count = 0; count < Math.max(0, Math.floor(recursion)); count += 1) {
-        const nested = engine.find(result.value, result.cursor, mode, "auto", snippets, wordDelimiters);
+        const nested = engine.find(result.value, result.cursor, mode, "auto", snippets, wordDelimiters, textMacros);
         if (!nested) break;
         result = applyOne(result.value, result.tabstops, nested);
     }

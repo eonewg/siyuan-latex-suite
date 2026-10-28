@@ -1,4 +1,5 @@
 import type {LatexSuiteSettings} from "../src/types";
+import {DEFAULT_KEYBINDINGS} from "../src/core/keyboard";
 
 export const TEST_SETTINGS: LatexSuiteSettings = {
     enabled: true,
@@ -17,6 +18,8 @@ export const TEST_SETTINGS: LatexSuiteSettings = {
     snippetRecursion: 0,
     removeSnippetWhitespace: true,
     suppressSnippetTriggerOnIME: true,
+    textMacros: {text: [], restricted: [{name: "operatorname", arguments: [0]}]},
+    keybindings: {...DEFAULT_KEYBINDINGS},
     wordDelimiters: "., +-\\n\\t:;!?\\/{}[]()=~$",
     autoFractionSymbol: "\\frac",
     autoFractionBreakingChars: "+-=\\t",

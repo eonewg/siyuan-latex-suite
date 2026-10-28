@@ -1,17 +1,21 @@
 import {renderTemplate} from "./template";
-import {createSnippetContext} from "./context";
-import type {EditorMode, Expansion, SnippetContext, SnippetDefinition} from "../types";
+import {createSnippetContext, matchesMacroArea} from "./context";
+import {prepareSnippets} from "./compiled-snippets";
+import type {EditorMode, Expansion, MathlessMacros, SnippetContext, SnippetDefinition} from "../types";
 
 type TriggerKind = "auto" | "tab";
+export type SnippetErrorHandler = (snippet: SnippetDefinition, error: unknown) => void;
 const FORMULA_START_BOUNDARY = "\u0000";
 
-function isModeEligible(options: string, context: SnippetContext): boolean {
-    if (context.snippetlessEnvironment) return false;
-    if (context.textEnvironment) return options.includes("t");
+function isModeEligible(options: string, context: SnippetContext, included = false): boolean {
+    if (context.snippetlessEnvironment && !included) return false;
+    if (context.textEnvironment) return options.includes("T") && (!/[mnM]/.test(options)
+        || options.includes("m") || options.includes(context.mode === "block" ? "M" : "n"));
+    if (options.includes("T")) return false;
     if (options.includes("m")) return true;
     if (options.includes("M") && context.mode === "block") return true;
     if (options.includes("n") && context.mode === "inline") return true;
-    const hasMode = /[tmnMcC]/.test(options);
+    const hasMode = /[tTmnMcC]/.test(options);
     return !hasMode;
 }
 
@@ -20,10 +24,6 @@ function isWordBoundary(value: string, from: number, to: number, delimiters: str
     const before = from <= 0 ? "" : value[from - 1] ?? "";
     const after = to >= value.length ? "" : value[to] ?? "";
     return (before === "" || expanded.includes(before)) && (after === "" || expanded.includes(after));
-}
-
-function safeFlags(flags = ""): string {
-    return [...new Set(flags)].filter((flag) => "imsuv".includes(flag)).join("");
 }
 
 function stripFormulaBoundary(match: RegExpExecArray, before: string): RegExpExecArray {
@@ -41,8 +41,7 @@ function stripFormulaBoundary(match: RegExpExecArray, before: string): RegExpExe
     return adjusted;
 }
 
-function matchRegexAtCursor(source: string, flags: string, before: string): RegExpExecArray | null {
-    const pattern = new RegExp(`(?:${source})$`, safeFlags(flags));
+function matchRegexAtCursor(pattern: RegExp, before: string): RegExpExecArray | null {
     const direct = pattern.exec(before);
     if (direct) return direct;
 
@@ -54,10 +53,6 @@ function matchRegexAtCursor(source: string, flags: string, before: string): RegE
     return stripFormulaBoundary(boundaryMatch, before);
 }
 
-function triggerLength(trigger: string | RegExp): number {
-    return typeof trigger === "string" ? trigger.length : trigger.source.length;
-}
-
 function visual(options: string, replacement: SnippetDefinition["replacement"]): boolean {
     return options.includes("v") || (typeof replacement === "string" && replacement.includes("${VISUAL}"));
 }
@@ -67,20 +62,46 @@ function inExcludedScope(snippet: SnippetDefinition, context: SnippetContext): b
     if (snippet.excludedMacros?.some((area) => context.macroAreas.some((active) =>
         active.name === area.name && (!area.arguments || area.arguments.includes(active.argument))))) return true;
     const trigger = typeof snippet.trigger === "string" ? snippet.trigger : snippet.trigger.source;
-    if (trigger === "([A-Za-z])(\\d)" && context.macros.some((name) => name === "ce" || name === "pu")) return true;
-    return trigger === "->" && context.macros.includes("ce");
+    if (trigger === "([A-Za-z])(\\d)" && context.macroAreas.some((area) => area.argument === 0
+        && (area.name === "ce" || area.name === "pu"))) return true;
+    return trigger === "->" && context.macroAreas.some((area) => area.name === "ce" && area.argument === 0);
+}
+
+function isScopeEligible(snippet: SnippetDefinition, context: SnippetContext): boolean {
+    const included = snippet.includedMacros;
+    const active = context.macroAreas.at(-1);
+    if (included?.length && (!active || !included.some((area) => matchesMacroArea(active, area)))) return false;
+    return isModeEligible(snippet.options ?? "m", context, !!included?.length) && !inExcludedScope(snippet, context);
 }
 
 function replacementValue(
     replacement: SnippetDefinition["replacement"],
     argument: string | RegExpExecArray,
+    onError: (error: unknown) => void,
 ): string | null {
     if (typeof replacement === "string") return replacement;
     const result = replacement(argument);
+    if (result && typeof (result as PromiseLike<unknown>).then === "function") {
+        void Promise.resolve(result).catch(onError);
+        onError(new Error("Asynchronous snippet replacements are not supported"));
+        return null;
+    }
     return typeof result === "string" ? result : null;
 }
 
 export class SnippetEngine {
+    private readonly failed = new WeakSet<SnippetDefinition>();
+
+    constructor(private readonly onError: SnippetErrorHandler = (snippet, error) => {
+        console.warn(`[Latex Suite] Skipped snippet ${String(snippet.trigger)}`, error);
+    }) {}
+
+    private quarantine(snippet: SnippetDefinition, error: unknown): void {
+        if (this.failed.has(snippet)) return;
+        this.failed.add(snippet);
+        try { this.onError(snippet, error); } catch { /* Diagnostics must not interrupt editing. */ }
+    }
+
     public find(
         value: string,
         cursor: number,
@@ -88,36 +109,30 @@ export class SnippetEngine {
         kind: TriggerKind,
         snippets: readonly SnippetDefinition[],
         wordDelimiters = "., +-\\n\\t:;!?\\/{}[]()=~$'\"|`<>*^%#@&",
+        textMacros?: MathlessMacros,
     ): Expansion | null {
-        const ordered = [...snippets].sort((a, b) =>
-            (b.priority ?? 0) - (a.priority ?? 0) || triggerLength(b.trigger) - triggerLength(a.trigger),
-        );
-        const context = createSnippetContext(value, cursor, mode);
-        for (const snippet of ordered) {
+        const ordered = prepareSnippets(snippets);
+        const context = createSnippetContext(value, cursor, mode, textMacros);
+        const before = value.slice(0, cursor);
+        for (const compiled of ordered) {
+            const {snippet} = compiled;
+            if (this.failed.has(snippet)) continue;
             const options = snippet.options ?? "m";
-            if (visual(options, snippet.replacement) || !isModeEligible(options, context)) continue;
+            if (visual(options, snippet.replacement) || !isScopeEligible(snippet, context)) continue;
             if (kind === "auto" && !options.includes("A")) continue;
-            if (inExcludedScope(snippet, context)) continue;
+            if (compiled.error) {this.quarantine(snippet, compiled.error); continue;}
 
-            const before = value.slice(0, cursor);
             let from = -1;
             let captures: readonly string[] | undefined;
             let namedCaptures: Readonly<Record<string, string>> | undefined;
             let replacementArgument: string | RegExpExecArray;
-            const regexTrigger = options.includes("r") || snippet.trigger instanceof RegExp;
-            if (regexTrigger) {
-                try {
-                    const source = snippet.trigger instanceof RegExp ? snippet.trigger.source : snippet.trigger;
-                    const flags = `${snippet.trigger instanceof RegExp ? snippet.trigger.flags : ""}${snippet.flags ?? ""}`;
-                    const match = matchRegexAtCursor(source, flags, before);
-                    if (!match || match.index < 0) continue;
-                    from = match.index;
-                    captures = match.slice(1);
-                    namedCaptures = match.groups;
-                    replacementArgument = match;
-                } catch {
-                    continue;
-                }
+            if (compiled.trigger) {
+                const match = matchRegexAtCursor(compiled.trigger, before);
+                if (!match || match.index < 0) continue;
+                from = match.index;
+                captures = match.slice(1);
+                namedCaptures = match.groups;
+                replacementArgument = match;
             } else {
                 const trigger = String(snippet.trigger);
                 if (!before.endsWith(trigger)) continue;
@@ -128,8 +143,7 @@ export class SnippetEngine {
             if (snippet.triggerAfter !== undefined) {
                 const after = value.slice(cursor);
                 if (snippet.triggerAfter instanceof RegExp) {
-                    const flags = `${snippet.triggerAfter.flags}${snippet.flags ?? ""}`;
-                    const match = new RegExp(`^(?:${snippet.triggerAfter.source})`, safeFlags(flags)).exec(after);
+                    const match = compiled.triggerAfter!.exec(after);
                     if (!match) continue;
                     to += match[0].length;
                 } else {
@@ -139,7 +153,9 @@ export class SnippetEngine {
             }
             if (options.includes("w") && !isWordBoundary(value, from, to, wordDelimiters)) continue;
 
-            const replacement = replacementValue(snippet.replacement, replacementArgument!);
+            let replacement: string | null;
+            try { replacement = replacementValue(snippet.replacement, replacementArgument!, (error) => this.quarantine(snippet, error)); }
+            catch (error) { this.quarantine(snippet, error); continue; }
             if (replacement === null) continue;
             const rendered = renderTemplate(replacement, {captures, namedCaptures});
             return {
@@ -162,18 +178,21 @@ export class SnippetEngine {
         snippets: readonly SnippetDefinition[],
         contextValue = selection,
         contextCursor = contextValue.length,
+        textMacros?: MathlessMacros,
     ): Expansion | null {
-        const context = createSnippetContext(contextValue, contextCursor, mode);
-        const snippet = [...snippets]
-            .filter((item) => visual(item.options ?? "", item.replacement))
-            .filter((item) => item.trigger === key
-                && isModeEligible(item.options ?? "", context)
-                && !inExcludedScope(item, context))
-            .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || triggerLength(b.trigger) - triggerLength(a.trigger))[0];
-        if (!snippet) return null;
-        const replacement = replacementValue(snippet.replacement, selection);
-        if (replacement === null) return null;
-        const rendered = renderTemplate(replacement.replaceAll("${VISUAL}", "[[selection]]"), {selection});
-        return {from, to, text: rendered.text, tabstops: rendered.tabstops, description: snippet.description};
+        const context = createSnippetContext(contextValue, contextCursor, mode, textMacros);
+        for (const compiled of prepareSnippets(snippets)) {
+            const {snippet} = compiled;
+            if (this.failed.has(snippet) || !visual(snippet.options ?? "", snippet.replacement)
+                || snippet.trigger !== key || !isScopeEligible(snippet, context)) continue;
+            if (compiled.error) {this.quarantine(snippet, compiled.error); continue;}
+            let replacement: string | null;
+            try { replacement = replacementValue(snippet.replacement, selection, (error) => this.quarantine(snippet, error)); }
+            catch (error) { this.quarantine(snippet, error); continue; }
+            if (replacement === null) continue;
+            const rendered = renderTemplate(replacement.replaceAll("${VISUAL}", "[[selection]]"), {selection});
+            return {from, to, text: rendered.text, tabstops: rendered.tabstops, description: snippet.description};
+        }
+        return null;
     }
 }

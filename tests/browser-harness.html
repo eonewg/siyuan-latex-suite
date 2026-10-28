@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Latex Suite 本地交互验证</title>
+<style>
+    :root { --b3-border-color: #d9dce3; --b3-theme-on-surface: #626772; --b3-font-family-code: Consolas, monospace; font: 15px/1.5 system-ui, sans-serif; color: #222735; background: #f5f6f9; }
+    body { max-width: 840px; margin: 24px auto; padding: 0 16px; }
+    main { background: white; border: 1px solid var(--b3-border-color); border-radius: 12px; }
+    textarea { width: 100%; min-height: 100px; box-sizing: border-box; padding: 12px; font: 15px/1.5 Consolas, monospace; }
+    input, select { padding: 8px 10px; border: 1px solid var(--b3-border-color); border-radius: 6px; font: inherit; }
+    h1 { font-size: 24px; } pre { background: #f5f6f9; padding: 8px; border-radius: 4px; }
+</style>
+<h1>Latex Suite 本地交互验证</h1>
+<p>用于检查浏览器中的源码框和片段速查，不连接思源数据。</p>
+<label for="editor">公式源码</label>
+<textarea id="editor" spellcheck="false" aria-label="公式源码"></textarea>
+<main id="reference"></main>
+<script type="module">
+    import "../src/index.css";
+    import {MathEditorController} from "../src/editor/math-editor-controller.ts";
+    import {createSnippetReference} from "../src/ui/snippet-reference.ts";
+    import {parseSnippets} from "../src/core/snippet-parser.ts";
+    import {BUNDLED_SNIPPETS_SOURCE, BUNDLED_SNIPPET_VARIABLES_SOURCE} from "../src/bundled-snippets-source.ts";
+    import {TEST_SETTINGS} from "./settings-fixture.ts";
+    const editor = document.querySelector("#editor");
+    let settings = {...TEST_SETTINGS};
+    let controller;
+    function configure(overrides = {}) {
+        controller?.destroy();
+        settings = {...TEST_SETTINGS, ...overrides, keybindings: {...TEST_SETTINGS.keybindings, ...overrides.keybindings}};
+        controller = new MathEditorController(editor, "block", () => settings);
+    }
+    configure();
+    const snippets = parseSnippets(BUNDLED_SNIPPETS_SOURCE, BUNDLED_SNIPPET_VARIABLES_SOURCE);
+    const reference = createSnippetReference(snippets, settings.keybindings);
+    document.querySelector("#reference").append(reference);
+    window.harness = {configure, editor, createSnippetReference};
+</script>
+</html>

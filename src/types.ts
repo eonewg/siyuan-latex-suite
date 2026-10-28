@@ -10,6 +10,29 @@ export interface ActiveMacroArea {
     argument: number;
 }
 
+export interface MathlessMacros {
+    text: MacroArea[];
+    restricted: MacroArea[];
+}
+
+export interface Keybindings {
+    snippetsTrigger: string;
+    snippetNextTabstopTrigger: string;
+    snippetPreviousTabstopTrigger: string;
+    taboutTrigger: string;
+    reverseTaboutTrigger: string;
+    autofractionTrigger: string;
+    matrixShortcutsCellTrigger: string;
+    matrixShortcutsNewlineTrigger: string;
+    matrixShortcutsExitTrigger: string;
+}
+
+export interface LatexScope {
+    kind: "macro" | "environment";
+    name: string;
+    from: number;
+}
+
 export type SnippetReplacementResult = string | false;
 export type SnippetReplacement = string | ((match: string | RegExpExecArray) => unknown);
 
@@ -24,6 +47,7 @@ export interface SnippetDefinition {
     triggerKey?: string;
     language?: string;
     excludedMacros?: MacroArea[];
+    includedMacros?: MacroArea[];
     excludedEnvironments?: string[];
 }
 
@@ -40,6 +64,8 @@ export interface LatexSuiteSettings {
     snippetRecursion: number;
     removeSnippetWhitespace: boolean;
     suppressSnippetTriggerOnIME: boolean;
+    textMacros: MathlessMacros;
+    keybindings: Keybindings;
     wordDelimiters: string;
     autoFractionSymbol: string;
     autoFractionBreakingChars: string;
@@ -85,4 +111,5 @@ export interface SnippetContext {
     environments: readonly string[];
     macros: readonly string[];
     macroAreas: readonly ActiveMacroArea[];
+    scopes: readonly LatexScope[];
 }

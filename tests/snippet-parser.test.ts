@@ -1,11 +1,50 @@
 import {describe, expect, it} from "vitest";
-import {BUNDLED_SNIPPETS_SOURCE, BUNDLED_SNIPPET_VARIABLES_SOURCE} from "../src/bundled-snippets-source";
-import {parseSnippets, parseSnippetVariables} from "../src/core/snippet-parser";
+import {BUNDLED_SNIPPETS_SOURCE, BUNDLED_SNIPPET_VARIABLES_SOURCE, LEGACY_BUNDLED_SNIPPETS_SOURCE, migrateBundledSnippets} from "../src/bundled-snippets-source";
+import {parseSnippets, parseSnippetVariables, parseTextMacros} from "../src/core/snippet-parser";
 import {SnippetEngine} from "../src/core/snippet-engine";
 
-describe("LaTeX Suite 1.12.2 source compatibility", () => {
+describe("bundled snippets and LaTeX Suite source compatibility", () => {
     const snippets = parseSnippets(BUNDLED_SNIPPETS_SOURCE, BUNDLED_SNIPPET_VARIABLES_SOURCE);
     const engine = new SnippetEngine();
+
+    it("upgrades the untouched bundled configuration while preserving custom source verbatim", () => {
+        expect(migrateBundledSnippets(LEGACY_BUNDLED_SNIPPETS_SOURCE)).toBe(BUNDLED_SNIPPETS_SOURCE);
+        expect(migrateBundledSnippets()).toBe(BUNDLED_SNIPPETS_SOURCE);
+        const custom = LEGACY_BUNDLED_SNIPPETS_SOURCE + "\n// my custom rules";
+        expect(migrateBundledSnippets(custom)).toBe(custom);
+        expect(migrateBundledSnippets("[]")).toBe("[]");
+    });
+
+    it("accepts expression-style default exports and key-only snippets", () => {
+        const parsed = parseSnippets('// imported settings\nexport default [{triggerKey: "Ctrl-q", replacement: "ok", options: "m"}];', 'export default {GREEK: "alpha"};');
+        expect(parsed[0]).toMatchObject({trigger: "", triggerKey: "Ctrl-q"});
+        expect(() => parseSnippets('[{replacement: "ok", options: "m"}]', '{}')).toThrow();
+    });
+
+    it("normalizes string macro entries to the first argument only", () => {
+        const parsed = parseSnippets('[{trigger:"aa",replacement:"ok",options:"mA",excludedMacros:["foo"],includedMacros:["bar"]}]', '{}');
+        expect(parsed[0]?.excludedMacros).toEqual([{name: "foo", arguments: [0]}]);
+        expect(parsed[0]?.includedMacros).toEqual([{name: "bar", arguments: [0]}]);
+        for (const [value, result] of [["\\foo{aa", null], ["\\foo{x}{aa", "ok"]] as const) {
+            const rules = [{...parsed[0]!, includedMacros: []}];
+            expect(engine.find(value, value.length, "inline", "auto", rules)?.text ?? null).toBe(result);
+        }
+    });
+
+    it("validates text macro configuration before saving", () => {
+        expect(parseTextMacros('{"text":["caption"],"restricted":[{"name":"foo"}]}')).toEqual({
+            text: [{name: "caption", arguments: [0]}], restricted: [{name: "foo", arguments: undefined}],
+        });
+        for (const source of ['[]', '{"text":"foo"}', '{"text":[{"name":"foo","arguments":[-1]}]}']) {
+            expect(() => parseTextMacros(source)).toThrow();
+        }
+    });
+
+    it("uses inline spaces and block newlines for beg without expanding inside commands", () => {
+        expect(engine.find("beg", 3, "inline", "auto", snippets)?.text).toBe("\\begin{}  \\end{}");
+        expect(engine.find("beg", 3, "block", "auto", snippets)?.text).toBe("\\begin{}\n\n\\end{}");
+        expect(engine.find("\\beg", 4, "inline", "auto", snippets)).toBeNull();
+    });
 
     it("parses the user's complete JavaScript-style snippet source", () => {
         expect(snippets.length).toBeGreaterThan(150);

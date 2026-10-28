@@ -1,7 +1,9 @@
 import {Setting, showMessage, type Plugin} from "siyuan";
 import {BUNDLED_SNIPPETS_SOURCE, BUNDLED_SNIPPET_VARIABLES_SOURCE} from "./bundled-snippets-source";
-import {parseSnippets} from "./core/snippet-parser";
-import type {LatexSuiteSettings} from "./types";
+import {parseSnippets, parseTextMacros} from "./core/snippet-parser";
+import {DEFAULT_MATHLESS_MACROS} from "./core/context";
+import {DEFAULT_KEYBINDINGS, parseKeybindings} from "./core/keyboard";
+import type {Keybindings, LatexSuiteSettings} from "./types";
 
 export const DEFAULT_SETTINGS: LatexSuiteSettings = {
     enabled: true,
@@ -16,11 +18,13 @@ export const DEFAULT_SETTINGS: LatexSuiteSettings = {
     snippetRecursion: 0,
     removeSnippetWhitespace: true,
     suppressSnippetTriggerOnIME: true,
+    textMacros: DEFAULT_MATHLESS_MACROS,
+    keybindings: {...DEFAULT_KEYBINDINGS},
     wordDelimiters: "., +-\\n\\t:;!?\\/{}[]()=~$'\"|`<>*^%#@&",
     autoFractionSymbol: "\\frac",
     autoFractionBreakingChars: "+-=\\t",
     autoFractionExcludedEnvironments: [["^{", "}"], ["\\pu{", "}"]],
-    matrixEnvironments: ["pmatrix", "cases", "align", "gather", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "array", "matrix"],
+    matrixEnvironments: ["pmatrix", "cases", "align", "gather", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "array", "matrix", "aligned"],
     matrixMacros: ["eqalign"],
     tabOutClosingSymbols: [")", "]", "\\rbrack", "\\}", "\\rbrace", "\\rangle", "\\rvert", "\\rVert", "\\rfloor", "\\rceil", "\\urcorner", "}"],
     tabOutExitOnlyAtEnd: false,
@@ -48,6 +52,7 @@ export interface Labels {
     customSnippetsDescription: string;
     invalidSnippets: string;
     saved: string;
+    saveFailed?: string;
 }
 
 function checkbox(): HTMLInputElement {
@@ -90,6 +95,7 @@ export function createSettingsUI(
     labels: Labels,
     getSettings: () => LatexSuiteSettings,
     saveSettings: (settings: LatexSuiteSettings) => Promise<void>,
+    openSnippetReference?: () => void,
 ): {setting: Setting; refresh: () => void} {
     const controls = {
         enabled: checkbox(),
@@ -115,7 +121,9 @@ export function createSettingsUI(
         matrixMacros: textField(),
         tabOutClosingSymbols: textField(),
         autoEnlargeBracketTriggers: textField(),
+        textMacros: textField(),
     };
+    const keyFields = Object.fromEntries(Object.keys(DEFAULT_KEYBINDINGS).map((key) => [key, textField()])) as Record<keyof Keybindings, HTMLInputElement>;
     const snippetsSource = document.createElement("textarea");
     snippetsSource.className = "b3-text-field fn__block latex-suite__snippets";
     snippetsSource.spellcheck = false;
@@ -147,6 +155,10 @@ export function createSettingsUI(
                     snippetsSource: snippetsSource.value,
                     snippetVariablesSource: variablesSource.value,
                     snippetRecursion: recursion,
+                    textMacros: parseTextMacros(fields.textMacros.value),
+                    keybindings: parseKeybindings(JSON.stringify(Object.fromEntries(
+                        Object.entries(keyFields).map(([key, field]) => [key, field.value]),
+                    ))),
                     wordDelimiters: fields.wordDelimiters.value,
                     autoFractionSymbol: fields.autoFractionSymbol.value.trim() || "\\frac",
                     autoFractionBreakingChars: fields.autoFractionBreakingChars.value,
@@ -156,7 +168,10 @@ export function createSettingsUI(
                     tabOutClosingSymbols: parseList(fields.tabOutClosingSymbols.value),
                     autoEnlargeBracketTriggers: parseList(fields.autoEnlargeBracketTriggers.value),
                 };
-                void saveSettings(next).then(() => showMessage(labels.saved));
+                void saveSettings(next).then(() => showMessage(labels.saved)).catch((error) => {
+                    console.warn("[Latex Suite] Failed to save settings", error);
+                    showMessage(labels.saveFailed ?? "设置保存失败，仍使用上一次有效配置；请重试。", 7000, "error");
+                });
             } catch (error) {
                 showMessage(`${labels.invalidSnippets}: ${error instanceof Error ? error.message : String(error)}`, 7000, "error");
             }
@@ -174,9 +189,9 @@ export function createSettingsUI(
     addSwitch("tabOut", labels.tabOut, labels.tabOutDescription);
     addSwitch("visualSnippets", labels.visualSnippets, labels.visualSnippetsDescription);
     addSwitch("removeSnippetWhitespace", "行级公式移除片段尾随空格", "与 Latex Suite 的 removeSnippetWhitespace 一致。");
-    addSwitch("suppressSnippetTriggerOnIME", "输入法组合期间抑制片段", "避免中文输入法尚未上屏时误触发自动片段。");
+    addSwitch("suppressSnippetTriggerOnIME", "输入法组合期间抑制片段", "组合期间暂停展开，上屏后执行一次自动片段。");
     addSwitch("autoEnlargeBrackets", "自动放大括号", "片段包含分数、求和、积分等命令时自动加入 \\left / \\right。");
-    addSwitch("tabOutExitOnlyAtEnd", "仅在公式末尾退出", "启用后，Tab 只有在光标位于公式末尾时才关闭公式输入面板。");
+    addSwitch("tabOutExitOnlyAtEnd", "仅在公式边界退出", "启用后，Tab 仅在末尾、Shift+Tab 仅在开头关闭面板；忽略边界空白。");
     addSwitch("autoEnlargeBracketSpace", "放大括号内侧留空格", "自动生成 \\left / \\right 时在括号内侧保留空格。");
     const addField = (key: keyof typeof fields, title: string, description: string) => {
         setting.addItem({title, description, actionElement: fields[key]});
@@ -190,6 +205,33 @@ export function createSettingsUI(
     addField("matrixMacros", "矩阵宏", "用逗号分隔，例如 eqalign。");
     addField("tabOutClosingSymbols", "Tab 可跳过的闭合符号", "用逗号分隔，例如 ), ], \\rangle。");
     addField("autoEnlargeBracketTriggers", "自动放大触发命令", "用逗号分隔，例如 \\frac, \\sum, \\int。");
+    addField("textMacros", "文本宏与禁用片段区域", 'JSON 对象：{"text":["mytext"],"restricted":["operatorname"]}。字符串仅匹配首个参数；用 {"name":"foo","arguments":[1]} 指定参数，省略 arguments 匹配全部参数。');
+    const shortcutTitles: Record<keyof Keybindings, string> = {
+        snippetsTrigger: "展开手动片段",
+        snippetNextTabstopTrigger: "下一个停靠点",
+        snippetPreviousTabstopTrigger: "上一个停靠点",
+        taboutTrigger: "向右跳出",
+        reverseTaboutTrigger: "向左跳出",
+        autofractionTrigger: "自动分数快捷键",
+        matrixShortcutsCellTrigger: "矩阵换列",
+        matrixShortcutsNewlineTrigger: "矩阵换行",
+        matrixShortcutsExitTrigger: "矩阵下一行末尾 / 跳出",
+    };
+    for (const key of Object.keys(keyFields) as Array<keyof Keybindings>) {
+        keyFields[key].setAttribute("aria-label", shortcutTitles[key]);
+        setting.addItem({
+            title: shortcutTitles[key],
+            description: `默认 ${DEFAULT_KEYBINDINGS[key]}；支持 Ctrl-j、Mod-/ 等格式，留空禁用此动作。`,
+            actionElement: keyFields[key],
+        });
+    }
+    if (openSnippetReference) {
+        const referenceButton = document.createElement("button");
+        referenceButton.className = "b3-button b3-button--outline";
+        referenceButton.textContent = "打开片段速查";
+        referenceButton.addEventListener("click", openSnippetReference);
+        setting.addItem({title: "片段速查", description: "搜索当前已保存片段的触发词、说明和模板，并查看模式及宏范围。", actionElement: referenceButton});
+    }
     setting.addItem({
         title: "Snippets（Latex Suite JavaScript 格式）",
         description: "支持注释、RegExp、replacement 函数、${VISUAL}、triggerAfter、priority 与排除字段。此处是受信任代码配置。",
@@ -220,6 +262,8 @@ export function createSettingsUI(
         fields.matrixMacros.value = current.matrixMacros.join(", ");
         fields.tabOutClosingSymbols.value = current.tabOutClosingSymbols.join(", ");
         fields.autoEnlargeBracketTriggers.value = current.autoEnlargeBracketTriggers.join(", ");
+        fields.textMacros.value = JSON.stringify(current.textMacros);
+        for (const key of Object.keys(keyFields) as Array<keyof Keybindings>) keyFields[key].value = current.keybindings[key];
     };
     refresh();
     return {setting, refresh};

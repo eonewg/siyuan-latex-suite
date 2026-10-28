@@ -18,6 +18,19 @@
     min-height: 120px;
 }
 
+.latex-suite__reference { padding: 16px; box-sizing: border-box; }
+.latex-suite__reference-toolbar { display: flex; gap: 8px; }
+.latex-suite__reference-toolbar input { flex: 1; min-width: 0; }
+.latex-suite__reference-list { max-height: 58vh; overflow: auto; margin-top: 12px; }
+.latex-suite__reference-entry { padding: 12px 0; border-top: 1px solid var(--b3-border-color); }
+.latex-suite__reference-trigger { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.latex-suite__reference-meta { color: var(--b3-theme-on-surface); font-size: 12px; margin: 4px 0; overflow-wrap: anywhere; }
+.latex-suite__reference pre { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--b3-font-family-code); }
+
+@media screen and (max-width: 480px) {
+    .latex-suite__reference-toolbar { flex-direction: column; }
+}
+
 @media screen and (max-width: 750px) {
     .latex-suite__snippets {
         height: 280px;

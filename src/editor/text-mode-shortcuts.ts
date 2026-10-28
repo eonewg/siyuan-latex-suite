@@ -57,29 +57,40 @@ export function rangeBeforeCaret(caret: Range, root: Node, length: number): Rang
     return null;
 }
 
+function rangeInClone(range: Range, root: Node, clone: Node): Range | null {
+    const mapNode = (node: Node): Node | null => {
+        const path: number[] = [];
+        while (node !== root) {
+            const parent = node.parentNode;
+            if (!parent) return null;
+            path.unshift(Array.prototype.indexOf.call(parent.childNodes, node));
+            node = parent;
+        }
+        let mapped: Node = clone;
+        for (const index of path) {
+            const child = mapped.childNodes[index];
+            if (!child) return null;
+            mapped = child;
+        }
+        return mapped;
+    };
+    const start = mapNode(range.startContainer);
+    const end = mapNode(range.endContainer);
+    if (!start || !end) return null;
+    const relative = document.createRange();
+    relative.setStart(start, range.startOffset);
+    relative.setEnd(end, range.endOffset);
+    return relative;
+}
+
 function isPlainEmptyParagraphAfterRemovingTrigger(block: HTMLElement, triggerRange: Range): boolean {
     if (block.getAttribute("data-type") !== "NodeParagraph") return false;
     const editable = block.firstElementChild;
     if (!editable || !editable.contains(triggerRange.commonAncestorContainer)) return false;
 
     const clone = editable.cloneNode(true) as HTMLElement;
-    const relative = document.createRange();
-    const startPath: number[] = [];
-    let startNode: Node = triggerRange.startContainer;
-    while (startNode !== editable) {
-        const parent = startNode.parentNode;
-        if (!parent) return false;
-        startPath.unshift(Array.prototype.indexOf.call(parent.childNodes, startNode));
-        startNode = parent;
-    }
-    let cloneStart: Node = clone;
-    for (const index of startPath) {
-        const child = cloneStart.childNodes[index];
-        if (!child) return false;
-        cloneStart = child;
-    }
-    relative.setStart(cloneStart, triggerRange.startOffset);
-    relative.setEnd(cloneStart, triggerRange.endOffset);
+    const relative = rangeInClone(triggerRange, editable, clone);
+    if (!relative) return false;
     relative.deleteContents();
     clone.querySelectorAll("br, wbr").forEach((item) => item.remove());
     return clone.textContent.replaceAll(ZERO_WIDTH_SPACE, "").trim() === "" && clone.childElementCount === 0;
@@ -120,7 +131,7 @@ export class TextModeShortcutController {
 
     private readonly beforeInput = (event: InputEvent): void => {
         const settings = this.getSettings();
-        if (!settings.enabled || !settings.autoSnippets || this.composing || event.isComposing
+        if (!settings.enabled || !settings.autoSnippets || !event.cancelable || event.defaultPrevented || this.composing || event.isComposing
             || event.inputType !== "insertText" || (event.data !== "k" && event.data !== "m")) return;
 
         const selection = document.getSelection();
@@ -157,10 +168,10 @@ export class TextModeShortcutController {
 
         if (event.data === "m" && triggerRange.toString() === "d"
             && isPlainEmptyParagraphAfterRemovingTrigger(block, triggerRange)) {
-            event.preventDefault();
-            event.stopPropagation();
-            triggerRange.deleteContents();
-            this.turnIntoMathBlock(protyle, block);
+            if (this.tryTurnIntoMathBlock(protyle, block, triggerRange)) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
         }
     };
 
@@ -171,35 +182,64 @@ export class TextModeShortcutController {
         return undefined;
     }
 
-    private turnIntoMathBlock(protyle: IProtyle, block: HTMLElement): void {
+    private tryTurnIntoMathBlock(protyle: IProtyle, block: HTMLElement, triggerRange: Range): boolean {
         const lute = protyle.lute;
         const toolbar = protyle.toolbar;
-        if (!lute || !toolbar) return;
-
-        const oldElement = block.cloneNode(true) as HTMLElement;
-        oldElement.classList.remove("protyle-wysiwyg--select");
-        oldElement.removeAttribute("select-start");
-        oldElement.removeAttribute("select-end");
-        const oldHTML = oldElement.outerHTML;
-        const editable = oldElement.firstElementChild;
-        if (!editable) return;
-        editable.textContent = "$$";
-
-        const template = document.createElement("template");
-        template.innerHTML = lute.SpinBlockDOM(oldElement.outerHTML);
-        if (template.content.childElementCount !== 1) return;
-        const newElement = template.content.firstElementChild as HTMLElement;
-        const id = block.getAttribute("data-node-id");
-        if (!id || newElement.getAttribute("data-node-id") !== id
-            || newElement.getAttribute("data-type") !== "NodeMathBlock") return;
-
-        block.replaceWith(newElement);
-        newElement.setAttribute("data-editing", "true");
-        protyle.getInstance().transaction(
-            [{action: "update", id, data: newElement.outerHTML}],
-            [{action: "update", id, data: oldHTML}],
-        );
-        ProtyleMethod.mathRender(newElement);
-        toolbar.showRender(protyle, newElement);
+        if (!lute || !toolbar) return false;
+        try {
+            // Prepare both transaction states on detached clones. Leave the
+            // live trigger and native key input untouched if conversion fails.
+            const oldElement = block.cloneNode(true) as HTMLElement;
+            oldElement.classList.remove("protyle-wysiwyg--select");
+            oldElement.removeAttribute("select-start");
+            oldElement.removeAttribute("select-end");
+            const undoRange = rangeInClone(triggerRange, block, oldElement);
+            if (!undoRange) return false;
+            undoRange.deleteContents();
+            undoRange.insertNode(document.createTextNode("dm"));
+            const oldHTML = oldElement.outerHTML;
+            const editable = oldElement.firstElementChild;
+            if (!editable) return false;
+            editable.textContent = "$$";
+            const template = document.createElement("template");
+            template.innerHTML = lute.SpinBlockDOM(oldElement.outerHTML);
+            if (template.content.childElementCount !== 1) return false;
+            const newElement = template.content.firstElementChild as HTMLElement;
+            const id = block.getAttribute("data-node-id");
+            if (!id || newElement.getAttribute("data-node-id") !== id
+                || newElement.getAttribute("data-type") !== "NodeMathBlock") return false;
+            const instance = protyle.getInstance();
+            const caretNode = triggerRange.endContainer;
+            const caretOffset = triggerRange.endOffset;
+            newElement.setAttribute("data-editing", "true");
+            block.replaceWith(newElement);
+            try {
+                instance.transaction(
+                    [{action: "update", id, data: newElement.outerHTML}],
+                    [{action: "update", id, data: oldHTML}],
+                );
+            } catch (error) {
+                newElement.replaceWith(block);
+                const caret = document.createRange();
+                caret.setStart(caretNode, caretOffset);
+                caret.collapse(true);
+                const selection = document.getSelection();
+                selection?.removeAllRanges();
+                selection?.addRange(caret);
+                throw error;
+            }
+            try {
+                ProtyleMethod.mathRender(newElement);
+                toolbar.showRender(protyle, newElement);
+            } catch (error) {
+                // The document transaction has already succeeded; a preview
+                // failure must not insert the consumed key into the new block.
+                console.warn("[Latex Suite] Failed to open the converted math block", error);
+            }
+            return true;
+        } catch (error) {
+            console.warn("[Latex Suite] Math block conversion failed; keeping native input", error);
+            return false;
+        }
     }
 }

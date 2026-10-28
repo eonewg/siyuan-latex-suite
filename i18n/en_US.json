@@ -8,12 +8,12 @@
   "enabledDescription": "Controls every math typing enhancement. Toggle quickly with Alt+Shift+L.",
   "autoSnippets": "Automatic snippets",
   "autoSnippetsDescription": "Expand snippets with the A option while typing, such as @a → \\alpha and xsr → x^{2}.",
-  "tabSnippets": "Tab snippets",
-  "tabSnippetsDescription": "Type a trigger and press Tab to expand it, such as frac, sq, sum, int, and mat.",
+  "tabSnippets": "Manual snippets",
+  "tabSnippetsDescription": "Expand a typed trigger with the configured shortcut (Tab by default), or use a snippet-specific triggerKey.",
   "autoFraction": "Auto-fraction",
   "autoFractionDescription": "Turn x/ or (a+b)/ into \\frac{x}{} and place the cursor in the denominator.",
   "matrixShortcuts": "Matrix shortcuts",
-  "matrixShortcutsDescription": "In matrix, cases, and align environments, Tab inserts &, Enter creates a row, and Shift+Enter moves to the next line end.",
+  "matrixShortcutsDescription": "In matrices, Tab skips brackets or adds a cell; Enter adds a row and Shift+Enter navigates to the next line or environment end. All shortcuts are configurable.",
   "tabOut": "Tab out of math",
   "tabOutDescription": "When no other target exists and the cursor is at the end, Tab closes the math editor.",
   "visualSnippets": "Selection snippets",
@@ -21,5 +21,7 @@
   "customSnippets": "Snippets (Latex Suite JavaScript)",
   "customSnippetsDescription": "Supports comments, RegExp, function replacements, variables, triggerAfter, triggerKey, priorities, exclusions and full tabstop semantics.",
   "invalidSnippets": "Invalid custom snippets",
-  "saved": "Latex Suite settings saved"
+  "saved": "Latex Suite settings saved",
+  "openSnippetReference": "Latex Suite snippet reference",
+  "saveFailed": "Failed to save Latex Suite settings. The previous configuration remains active; please retry."
 }

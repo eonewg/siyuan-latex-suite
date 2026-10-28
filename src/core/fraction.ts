@@ -1,4 +1,5 @@
 import {renderTemplate} from "./template";
+import {isMathInputContext} from "./context";
 import type {Expansion, LatexSuiteSettings} from "../types";
 
 const PAIRS: Record<string, string> = {")": "(", "]": "[", "}": "{"};
@@ -60,10 +61,12 @@ function stripOuterParentheses(value: string): string {
 export function createAutoFraction(
     value: string,
     cursor: number,
-    settings?: Pick<LatexSuiteSettings, "autoFractionSymbol" | "autoFractionBreakingChars" | "autoFractionExcludedEnvironments">,
+    settings?: Pick<LatexSuiteSettings, "autoFractionSymbol" | "autoFractionBreakingChars" | "autoFractionExcludedEnvironments">
+        & Partial<Pick<LatexSuiteSettings, "textMacros">>,
 ): Expansion | null {
     const slash = cursor - 1;
     if (slash < 0 || value[slash] !== "/") return null;
+    if (!isMathInputContext(value, slash, settings?.textMacros)) return null;
     const symbol = settings?.autoFractionSymbol ?? "\\frac";
     const breakingChars = settings?.autoFractionBreakingChars ?? "+-=\\t";
     const excluded = settings?.autoFractionExcludedEnvironments ?? [["^{", "}"], ["\\pu{", "}"]];
@@ -79,4 +82,11 @@ export function createSelectionFraction(selection: string, from: number, to: num
     if (!selection) return null;
     const rendered = renderTemplate(`${symbol}{${stripOuterParentheses(selection)}}{$1}$2`);
     return {from, to, text: rendered.text, tabstops: rendered.tabstops, description: "Selection fraction"};
+}
+
+/** Runs a shortcut without inserting its key into the formula. */
+export function createShortcutFraction(value: string, cursor: number, settings: Pick<LatexSuiteSettings,
+    "autoFractionSymbol" | "autoFractionBreakingChars" | "autoFractionExcludedEnvironments"> & Partial<Pick<LatexSuiteSettings, "textMacros">>): Expansion | null {
+    const result = createAutoFraction(value.slice(0, cursor) + "/" + value.slice(cursor), cursor + 1, settings);
+    return result ? {...result, to: cursor} : null;
 }

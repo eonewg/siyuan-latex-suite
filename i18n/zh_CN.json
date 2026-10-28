@@ -8,12 +8,12 @@
   "enabledDescription": "控制所有公式输入增强功能，可用 Alt+Shift+L 快速切换。",
   "autoSnippets": "自动片段",
   "autoSnippetsDescription": "键入带 A 选项的触发词后立即展开，例如 @a → \\alpha、xsr → x^{2}。",
-  "tabSnippets": "Tab 片段",
-  "tabSnippetsDescription": "键入触发词并按 Tab 展开，例如 frac、sq、sum、int、mat。",
+  "tabSnippets": "手动片段",
+  "tabSnippetsDescription": "键入触发词后按配置键展开（默认 Tab）；每个片段也可配置独立 triggerKey。",
   "autoFraction": "自动分数",
   "autoFractionDescription": "键入 x/ 或 (a+b)/ 时自动生成 \\frac{x}{} 并进入分母。",
   "matrixShortcuts": "矩阵快捷键",
-  "matrixShortcutsDescription": "矩阵、cases、align 等环境内，Tab 插入 &，Enter 插入换行符，Shift+Enter 跳到下一行末尾。",
+  "matrixShortcutsDescription": "矩阵内默认 Tab 跳过括号或换列，Enter 换行，Shift+Enter 导航到下一行或环境末尾；支持独立改键。",
   "tabOut": "Tab 跳出公式",
   "tabOutDescription": "没有其他可跳位置且光标位于公式末尾时，Tab 关闭公式输入面板。",
   "visualSnippets": "选区片段",
@@ -21,5 +21,7 @@
   "customSnippets": "Snippets（Latex Suite JavaScript）",
   "customSnippetsDescription": "支持注释、RegExp、函数 replacement、变量、triggerAfter、triggerKey、priority、排除规则和完整停靠点语义。",
   "invalidSnippets": "自定义片段格式错误",
-  "saved": "Latex Suite 设置已保存"
+  "saved": "Latex Suite 设置已保存",
+  "openSnippetReference": "Latex Suite 片段速查",
+  "saveFailed": "Latex Suite 设置保存失败，继续使用上一次成功保存的配置，请重试。"
 }

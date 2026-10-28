@@ -1,6 +1,7 @@
 import type {EditorMode, LatexSuiteSettings} from "../types";
 import {MathEditorController} from "./math-editor-controller";
 import {MathLiveController} from "./mathlive-controller";
+import type {SnippetErrorHandler} from "../core/snippet-engine";
 
 interface EditorToolbar {
     subElement?: HTMLElement;
@@ -47,68 +48,86 @@ function detectMode(renderElement?: HTMLElement, root?: HTMLElement): EditorMode
 
 export class EditorSessionManager {
     private readonly sessions = new Map<HTMLElement, Session>();
+    private destroyed = false;
 
     constructor(
         private readonly getSettings: () => LatexSuiteSettings,
         private readonly onConnected: (kind: "native" | "mathlive") => void = () => undefined,
+        private readonly onSnippetError?: SnippetErrorHandler,
     ) {}
 
     public open(event: CustomEvent<OpenEditorDetail>): void {
+        if (this.destroyed) return;
         const detail = event.detail;
         const root = detail.toolbar?.subElement;
-        const mode = detectMode(detail.renderElement, root);
-        if (!root || !mode) return;
+        if (!root) return;
         this.sessions.get(root)?.destroy();
+        const mode = detectMode(detail.renderElement, root);
+        if (!mode) return;
+
+        const toolbar = detail.toolbar;
+        const originalClose = toolbar?.subElementCloseCB;
+        let closed = false;
+        let frame: number | null = null;
+        let observer: MutationObserver | null = null;
+        let controller: {destroy: () => void} | null = null;
+        let boundElement: HTMLElement | null = null;
+        const destroy = () => {
+            if (closed) return;
+            closed = true;
+            if (frame !== null) cancelAnimationFrame(frame);
+            frame = null;
+            observer?.disconnect();
+            controller?.destroy();
+            controller = null;
+            boundElement = null;
+            if (toolbar && toolbar.subElementCloseCB === wrappedClose) toolbar.subElementCloseCB = originalClose;
+            if (this.sessions.get(root) === session) this.sessions.delete(root);
+        };
+        const wrappedClose = () => {
+            if (closed) return;
+            try { originalClose?.(); } finally { destroy(); }
+        };
+        const session: Session = {destroy};
+        this.sessions.set(root, session);
+        if (toolbar) toolbar.subElementCloseCB = wrappedClose;
 
         const attach = () => {
-            const textarea = root.querySelector("textarea");
-            if (!(textarea instanceof HTMLTextAreaElement)) return;
-            const toolbar = detail.toolbar;
-            let controller: {destroy: () => void} = new MathEditorController(textarea, mode, this.getSettings);
-            this.onConnected("native");
-            let mathLiveAttached = false;
-            const attachMathLive = () => {
-                if (mathLiveAttached) return;
-                const mathField = root.querySelector("math-field");
-                if (!mathField || !MathLiveController.supports(mathField)) return;
-                controller.destroy();
-                controller = new MathLiveController(mathField, mode, this.getSettings);
-                mathLiveAttached = true;
-                this.onConnected("mathlive");
-            };
-            const observer = new MutationObserver(attachMathLive);
-            observer.observe(root, {childList: true, subtree: true});
-            attachMathLive();
-            const originalClose = toolbar?.subElementCloseCB;
-            let closed = false;
-            let wrappedClose: (() => void) | null = null;
-            const destroy = () => {
-                if (closed) return;
-                closed = true;
-                observer.disconnect();
-                controller.destroy();
-                if (toolbar && toolbar.subElementCloseCB === wrappedClose) toolbar.subElementCloseCB = originalClose;
-                if (this.sessions.get(root)?.destroy === destroy) this.sessions.delete(root);
-            };
-            if (toolbar) {
-                wrappedClose = () => {
-                    try {
-                        originalClose?.();
-                    } finally {
-                        destroy();
-                    }
-                };
-                toolbar.subElementCloseCB = wrappedClose;
+            if (closed || this.destroyed || this.sessions.get(root) !== session) return;
+            if (root.isConnected === false || toolbar?.subElement !== root) {
+                destroy();
+                return;
             }
-            this.sessions.set(root, {destroy});
+            const mathField = root.querySelector("math-field");
+            const textarea = root.querySelector("textarea");
+            const element = mathField && MathLiveController.supports(mathField) ? mathField
+                : textarea instanceof HTMLTextAreaElement ? textarea : null;
+            if (element === boundElement) return;
+            controller?.destroy();
+            controller = null;
+            boundElement = element;
+            if (!element) return;
+            if (MathLiveController.supports(element)) {
+                controller = new MathLiveController(element, mode, this.getSettings, this.onSnippetError);
+                this.onConnected("mathlive");
+            } else {
+                controller = new MathEditorController(element as HTMLTextAreaElement, mode, this.getSettings, this.onSnippetError);
+                this.onConnected("native");
+            }
         };
-
-        if (root.querySelector("textarea")) attach();
-        else requestAnimationFrame(attach);
+        observer = new MutationObserver(attach);
+        observer.observe(root, {childList: true, subtree: true});
+        attach();
+        if (!boundElement && !closed) frame = requestAnimationFrame(() => {
+            frame = null;
+            attach();
+        });
     }
 
     public scanOpenEditors(): void {
+        if (this.destroyed) return;
         for (const root of document.querySelectorAll<HTMLElement>(".protyle-util")) {
+            if (root.hidden || root.classList.contains("fn__none")) continue;
             if (this.sessions.has(root) || !root.querySelector("textarea")) continue;
             if (!detectMode(undefined, root)) continue;
             this.open(new CustomEvent<OpenEditorDetail>("latex-suite-scan", {
@@ -118,6 +137,7 @@ export class EditorSessionManager {
     }
 
     public destroy(): void {
+        this.destroyed = true;
         for (const session of [...this.sessions.values()]) session.destroy();
         this.sessions.clear();
     }

@@ -1,4 +1,4 @@
-import {describe, expect, it} from "vitest";
+import {describe, expect, it, vi} from "vitest";
 import {SnippetEngine} from "../src/core/snippet-engine";
 import type {SnippetDefinition} from "../src/types";
 
@@ -11,6 +11,85 @@ const snippets: SnippetDefinition[] = [
 ];
 
 describe("SnippetEngine", () => {
+    it("quarantines a throwing replacement once and keeps lower-priority rules working", () => {
+        const onError = vi.fn();
+        const replacement = vi.fn(() => {throw new Error("broken replacement");});
+        const engine = new SnippetEngine(onError);
+        const rules: SnippetDefinition[] = [
+            {trigger: "aa", replacement, options: "mA", priority: 10},
+            {trigger: "aa", replacement: "ok", options: "mA"},
+        ];
+        expect(engine.find("aa", 2, "inline", "auto", rules)?.text).toBe("ok");
+        expect(engine.find("aa", 2, "inline", "auto", rules)?.text).toBe("ok");
+        expect(replacement).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError.mock.calls[0]?.[0]).toBe(rules[0]);
+        expect(engine.find("aa", 2, "inline", "auto", [{...rules[0]!, replacement: "fixed"}])?.text).toBe("fixed");
+    });
+
+    it("preserves input when the only rule throws and isolates visual failures", () => {
+        const engine = new SnippetEngine(() => {throw new Error("reporter failure");});
+        const bad: SnippetDefinition = {trigger: "aa", replacement: () => {throw new Error("bad");}, options: "mA"};
+        expect(engine.find("aa", 2, "inline", "auto", [bad])).toBeNull();
+        const visual = [
+            {...bad, trigger: "U", options: "mv", priority: 2},
+            {trigger: "U", replacement: "[${VISUAL}]", options: "mv"},
+        ];
+        expect(engine.findVisual("U", "x", 0, 1, "inline", visual)?.text).toBe("[x]");
+    });
+
+    it("handles rejected async replacements without an unhandled rejection", async () => {
+        const onError = vi.fn();
+        const engine = new SnippetEngine(onError);
+        const rule: SnippetDefinition = {trigger: "aa", replacement: async () => {throw new Error("async");}, options: "mA"};
+        expect(engine.find("aa", 2, "inline", "auto", [rule])).toBeNull();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(onError).toHaveBeenCalledTimes(1);
+    });
+
+    it("treats false as a normal skipped rule rather than an error", () => {
+        const replacement = vi.fn(() => false);
+        const onError = vi.fn();
+        const engine = new SnippetEngine(onError);
+        const rules = [{trigger: "aa", replacement, options: "mA"}];
+        engine.find("aa", 2, "inline", "auto", rules);
+        engine.find("aa", 2, "inline", "auto", rules);
+        expect(replacement).toHaveBeenCalledTimes(2);
+        expect(onError).not.toHaveBeenCalled();
+    });
+    it("distinguishes T inside text macros from t in document text", () => {
+        const rules: SnippetDefinition[] = [
+            {trigger: "aa", replacement: "text", options: "TA"},
+            {trigger: "aa", replacement: "document", options: "tA"},
+            {trigger: "aa", replacement: "math", options: "mA"},
+        ];
+        const value = "\\text{aa";
+        expect(engine.find(value, value.length, "inline", "auto", rules)?.text).toBe("text");
+        expect(engine.find("aa", 2, "inline", "auto", rules)?.text).toBe("math");
+        expect(engine.find(value, value.length, "inline", "auto", [rules[1]!])).toBeNull();
+    });
+
+    it("uses includedMacros only for the innermost macro and still honors exclusions", () => {
+        const rules: SnippetDefinition[] = [{trigger: "aa", replacement: "ok", options: "mA", includedMacros: [{name: "color", arguments: [0]}]}];
+        for (const value of ["aa", "\\color{x}{aa", "\\color{\\foo{aa"]) {
+            expect(engine.find(value, value.length, "inline", "auto", rules)).toBeNull();
+        }
+        const value = "\\color{aa";
+        expect(engine.find(value, value.length, "inline", "auto", rules)?.text).toBe("ok");
+        expect(engine.find(value, value.length, "inline", "auto", [{...rules[0]!, excludedMacros: [{name: "color"}]}])).toBeNull();
+    });
+
+    it("applies custom macro settings to automatic and visual snippets", () => {
+        const custom = {text: [{name: "caption", arguments: [0]}], restricted: []};
+        const rules: SnippetDefinition[] = [
+            {trigger: "aa", replacement: "ok", options: "TA"},
+            {trigger: "U", replacement: "[${VISUAL}]", options: "Tv"},
+        ];
+        const value = "\\caption{aa";
+        expect(engine.find(value, value.length, "inline", "auto", rules, "", custom)?.text).toBe("ok");
+        expect(engine.findVisual("U", "aa", 9, 11, "inline", rules, value, 9, custom)?.text).toBe("[aa]");
+    });
     it("expands automatic literal snippets", () => {
         expect(engine.find("1+@a", 4, "inline", "auto", snippets)).toMatchObject({from: 2, to: 4, text: "\\alpha"});
     });
